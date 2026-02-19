@@ -1,5 +1,4 @@
 import sys
-import subprocess
 import time
 import os
 import threading
@@ -7,20 +6,7 @@ import json
 import tkinter as tk
 from tkinter import messagebox
 
-# =========================
-# AUTO-INSTALL (SAFE)
-# =========================
-def install_requirements():
-    packages = ["customtkinter", "pyautogui", "keyboard", "pillow", "opencv-python", "numpy"]
-    for package in packages:
-        try:
-            module = "cv2" if package == "opencv-python" else package
-            __import__(module)
-        except ImportError:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-install_requirements()
-
+# Standard imports
 import customtkinter as ctk
 import pyautogui
 import keyboard
@@ -31,7 +17,11 @@ from PIL import Image, ImageGrab
 # =========================
 # PATHS & CONFIG
 # =========================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 CONFIG_FILE = os.path.join(BASE_DIR, "fac_settings.json")
 TARGET_IMG = os.path.join(BASE_DIR, "target.png")
 
@@ -105,35 +95,27 @@ class SettingsWindow(ctk.CTkToplevel):
         self.resizable(False, False)
 
         ctk.CTkLabel(self, text="PREFERENCES", font=("Arial", 16, "bold")).pack(pady=15)
-
         ctk.CTkLabel(self, text="Confidence Level:").pack()
         self.conf_box = ctk.CTkComboBox(self, values=["60%", "70%", "80%", "90%", "100%"])
         self.conf_box.pack(pady=5)
-
         ctk.CTkLabel(self, text="Scan Delay:").pack()
         self.delay_options = ["0.01s", "0.05s", "0.1s", "0.5s", "1s", "2s", "5s", "10s", "30s", "1m", "2m", "5m"]
         self.delay_box = ctk.CTkComboBox(self, values=self.delay_options)
         self.delay_box.pack(pady=5)
-
         self.mouse_check = ctk.CTkCheckBox(self, text="Restore mouse position after click")
         self.mouse_check.pack(pady=(20, 10), padx=20, anchor="w")
-
         self.auto_check = ctk.CTkCheckBox(self, text="Auto-start after capture")
         self.auto_check.pack(pady=10, padx=20, anchor="w")
 
         self.set_ui_from_config(parent.config)
-
-        # Buttons
         ctk.CTkButton(self, text="SAVE CONFIGURATION", command=self.apply, fg_color="#1f538d").pack(pady=(20, 10))
         ctk.CTkButton(self, text="RESET TO DEFAULT", command=self.reset_to_default, fg_color="#444444", hover_color="#660000").pack(pady=10)
 
     def set_ui_from_config(self, config_data):
         self.conf_box.set(config_data["confidence"])
         self.delay_box.set(config_data["delay"])
-        
         if config_data["restore_mouse"]: self.mouse_check.select()
         else: self.mouse_check.deselect()
-            
         if config_data["autostart"]: self.auto_check.select()
         else: self.auto_check.deselect()
 
@@ -209,7 +191,6 @@ class FAC(ctk.CTk):
         if not self.running:
             if self.target_np is None:
                 return messagebox.showwarning("FAC", "No target image found! Set a target area first.")
-            
             self.running = True
             self.btn_run.configure(text="STOP (ESC)", fg_color="#C0392B")
             self.lbl_status.configure(text="● ACTIVE", text_color="#2ecc71")
@@ -226,7 +207,6 @@ class FAC(ctk.CTk):
 
     def logic_loop(self):
         pyautogui.PAUSE = 0
-        
         while self.running:
             if keyboard.is_pressed("esc"):
                 self.after(0, self.toggle_bot)
@@ -244,12 +224,9 @@ class FAC(ctk.CTk):
                     h, w = self.target_np.shape
                     orig_pos = pyautogui.position()
                     pyautogui.click(max_loc[0] + w//2, max_loc[1] + h//2)
-                    
                     if self.config.get("restore_mouse"):
-                        pyautogui.moveTo(orig_pos) 
-                    
-                    time.sleep(0.5) 
-
+                        pyautogui.moveTo(orig_pos)
+                    time.sleep(0.5)
                 time.sleep(d_val)
             except: 
                 time.sleep(0.1)
